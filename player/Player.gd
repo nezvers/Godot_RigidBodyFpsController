@@ -7,10 +7,13 @@ onready var camera: = $Body/Camera
 var forward:Vector3
 var right:Vector3
 
+var ground_layer: = 1
+
 #Movement
 var moveSpeed: = 4500
 var maxSpeed: = 20.0
 var grounded: = false
+var cancellingGrounded: = false
 var threshold: = 0.01
 var maxSlopeAngle: = 45.0/90.0	#easy to check against normals y value
 var counterMovement: = 0.175
@@ -31,6 +34,11 @@ var jumping: = false
 var sprinting: = false
 var crouching: = false
 
+#Sliding
+var normalVector: = Vector3.UP
+var wallNormalVector:Vector3
+
+
 func _unhandled_input(event:InputEvent)->void:
 	if event is InputEventMouseMotion && Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		camera.mouse_movement(event)	#Camera deals with turning and looking
@@ -38,10 +46,7 @@ func _unhandled_input(event:InputEvent)->void:
 func _integrate_forces(state: PhysicsDirectBodyState)->void:
 	forward = -body.transform.basis.z
 	right = body.transform.basis.x
-	
-	grounded = false
-	for i in state.get_contact_count():
-		grounded = state.get_contact_local_normal(i).y > 0.5
+	CollisionCheck(state)
 	MyInput()
 	movement(state.step)
 
@@ -69,7 +74,7 @@ func movement(delta:float)->void:
 	
 	#If holding jump && ready to jump, then jump
 	if readyToJump && jumping:
-		#Jump()
+		Jump()
 		pass
 	
 	#If sliding down a ramp, add force down so player stays grounded and also builds speed
@@ -130,3 +135,34 @@ func CounterMovement(delta:float, mag:Vector2)->void:
 		var fallSpeed = linear_velocity.y
 		var n: = linear_velocity.normalized() * maxSpeed
 		linear_velocity = Vector3(n.x, fallSpeed, n.z)
+
+func Jump()->void:
+	if grounded && readyToJump:
+		readyToJump = false
+		
+		#Add jump forces
+		add_central_force(Vector3.UP * jumpForce * 1.5)
+		add_central_force(normalVector * jumpForce * 0.5)
+		
+		#If jumping while falling, reset y velocity.
+		#Not sure yet about that section
+
+func CollisionCheck(state: PhysicsDirectBodyState)->void:
+	grounded = false
+	for i in state.get_contact_count():
+		if ground_layer == ground_layer & state.get_contact_collider_object(i).collision_mask:	#bitmask AND with ground layer to check if colliding against ground layer
+			var normal = state.get_contact_local_normal(i)
+			if normal.y > maxSlopeAngle:
+				grounded = true
+				cancellingGrounded = false
+				normalVector = normal
+				readyToJump = true
+
+
+
+
+
+
+
+
+

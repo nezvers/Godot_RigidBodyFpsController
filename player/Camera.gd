@@ -13,7 +13,5 @@ func mouse_movement(event:InputEventMouseMotion)->void:
 		body.rotate_object_local(Vector3.UP, dir * event.relative.x * mouse_sensitivity)
 	if event.relative.y != 0:
 			var dir = 1 if invert_y else -1
-			var y_rotation = event.relative.y #clamp(event.relative.y, -30, 30)
-			#rotate_object_local(Vector3.RIGHT, dir * y_rotation * mouse_sensitivity)
+			var y_rotation = event.relative.y
 			rotation.x = clamp(rotation.x + dir * y_rotation * mouse_sensitivity, -max_angle, max_angle)
-			print(y_rotation)
