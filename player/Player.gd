@@ -51,10 +51,6 @@ var wallNormalVector:Vector3
 func _unhandled_input(event:InputEvent)->void:
 	if event is InputEventMouseMotion && Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		camera.mouse_movement(event)	#Camera deals with turning and looking
-	elif event.is_action_pressed("jump"):
-		jump = true
-	elif event.is_action_released("jump"):
-		jump = false
 	elif event.is_action("move_right"):
 		btn_right = Input.get_action_strength("move_right")
 	elif event.is_action("move_left"):
@@ -63,26 +59,26 @@ func _unhandled_input(event:InputEvent)->void:
 		btn_up = Input.get_action_strength("move_up")
 	elif event.is_action("move_down"):
 		btn_down = Input.get_action_strength("move_down")
+	elif event.is_action_pressed("jump"):
+		jump = true
+	elif event.is_action_released("jump"):
+		jump = false
+	elif event.is_action_pressed("crouch"):
+		crouching = true
+#        StartCrouch()   #not important now
+	elif event.is_action_released("crouch"):
+		crouching = false
+#        StopCrouch()    #not important now
 	
 
 func _integrate_forces(state: PhysicsDirectBodyState)->void:
 	forward = -body.transform.basis.z
 	right = body.transform.basis.x
-	CollisionCheck(state)
-	MyInput()
-	movement(state.step)
-
-
-func MyInput()->void:
 	x = btn_right - btn_left
 	y = btn_up - btn_down
-	jump = Input.is_action_pressed("jump")
-	crouching = Input.is_action_pressed("crouch")
-	
-#    if Input.is_action_just_pressed("crouch"):
-#        StartCrouch()   #not important now
-#    if Input.is_action_just_released("crouch"):
-#        StopCrouch()    #not important now
+	CollisionCheck(state)
+	movement(state.step)
+
 
 func movement(delta:float)->void:
 	#Add extra gravity
