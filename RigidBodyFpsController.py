@@ -1,4 +1,5 @@
 # original - https://github.com/DaniDevy/FPS_Movement_Rigidbody
+# IN PROCESS OF TRANSLATION
 extends RigidBody
 
 var x:float
