@@ -1,3 +1,3 @@
 # Godot_RigidBodyFpsController
-Translation from Unity DaniTutorials @DaniDevy Rigidbody FPS controller
-Creation of RigidBody FPS controller alternative in Godot engine.
+Base ground is from translation of Unity DaniTutorials @DaniDevy Rigidbody FPS controller
+This is RigidBody FPS controller alternative in Godot engine.
