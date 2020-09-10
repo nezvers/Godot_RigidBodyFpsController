@@ -38,5 +38,15 @@ current = true
 script = ExtResource( 2 )
 
 [node name="JumperBuffer" type="Timer" parent="."]
-wait_time = 0.1
 one_shot = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="CanvasLayer"]
+margin_left = 15.3576
+margin_top = 15.3576
+margin_right = 55.3576
+margin_bottom = 29.3576
+__meta__ = {
+"_edit_use_anchors_": false
+}
