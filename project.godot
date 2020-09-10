@@ -66,6 +66,11 @@ crouch={
  ]
 }
 
+[layer_names]
+
+3d_physics/layer_1="Ground"
+3d_physics/layer_2="Player"
+
 [rendering]
 
 quality/filters/anisotropic_filter_level=16

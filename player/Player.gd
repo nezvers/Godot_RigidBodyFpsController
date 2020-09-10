@@ -3,6 +3,7 @@ extends RigidBody
 
 onready var body: = $Body
 onready var camera: = $Body/Camera
+onready var jumpBuffer: = $JumperBuffer
 
 var forward:Vector3
 var right:Vector3
@@ -12,25 +13,33 @@ var ground_layer: = 1
 #Movement
 var moveSpeed: = 4500
 var maxSpeed: = 20.0
-var grounded: = false
-var cancellingGrounded: = false
+var is_grounded: = false
+var cancellingis_grounded: = false
 var threshold: = 0.01
 var maxSlopeAngle: = 45.0/90.0	#easy to check against normals y value
 var counterMovement: = 0.175
+var gravity_force: = 3000.0
 
 #Crouch & Slide
 var slideForce: = 400
 var slideCounterMovement: = 0.2
 
 #Jumping
-var readyToJump = true
-var jumpCooldown = 0.25
-var jumpForce = 550.0
+var readyToJump: = true
+var jumpCooldown: = 0.25
+var jumpForce: = 450.0
+var jump_count: = 0
+var max_jumps: = 2
+var is_jumping: = false 	#jump logic deviation from DaviTutorials
 
 #Input
+var btn_right: = 0.0
+var btn_left: = 0.0
+var btn_up: = 0.0
+var btn_down: = 0.0
 var x: = 0.0
 var y: = 0.0
-var jumping: = false
+var jump: = false
 var sprinting: = false
 var crouching: = false
 
@@ -42,6 +51,19 @@ var wallNormalVector:Vector3
 func _unhandled_input(event:InputEvent)->void:
 	if event is InputEventMouseMotion && Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		camera.mouse_movement(event)	#Camera deals with turning and looking
+	elif event.is_action_pressed("jump"):
+		jump = true
+	elif event.is_action_released("jump"):
+		jump = false
+	elif event.is_action("move_right"):
+		btn_right = Input.get_action_strength("move_right")
+	elif event.is_action("move_left"):
+		btn_left = Input.get_action_strength("move_left")
+	elif event.is_action("move_up"):
+		btn_up = Input.get_action_strength("move_up")
+	elif event.is_action("move_down"):
+		btn_down = Input.get_action_strength("move_down")
+	
 
 func _integrate_forces(state: PhysicsDirectBodyState)->void:
 	forward = -body.transform.basis.z
@@ -52,9 +74,9 @@ func _integrate_forces(state: PhysicsDirectBodyState)->void:
 
 
 func MyInput()->void:
-	x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	y = Input.get_action_strength("move_up") - Input.get_action_strength("move_down")
-	jumping = Input.is_action_pressed("jump")
+	x = btn_right - btn_left
+	y = btn_up - btn_down
+	jump = Input.is_action_pressed("jump")
 	crouching = Input.is_action_pressed("crouch")
 	
 #    if Input.is_action_just_pressed("crouch"):
@@ -64,7 +86,7 @@ func MyInput()->void:
 
 func movement(delta:float)->void:
 	#Add extra gravity
-	add_central_force(Vector3.DOWN * delta * 10)
+	add_central_force(Vector3.DOWN * delta * gravity_force)
 	
 	#Find actual velocity relative to where player is looking
 	var mag:Vector2 = FindVelRelativeToLook()
@@ -73,12 +95,11 @@ func movement(delta:float)->void:
 	CounterMovement(delta, mag)    #x & y is global variable
 	
 	#If holding jump && ready to jump, then jump
-	if readyToJump && jumping:
+	if readyToJump && jump:
 		Jump()
-		pass
 	
-	#If sliding down a ramp, add force down so player stays grounded and also builds speed
-	if crouching && grounded && readyToJump:
+	#If sliding down a ramp, add force down so player stays is_grounded and also builds speed
+	if crouching && is_grounded && readyToJump:
 		add_central_force(Vector3.DOWN * delta * 3000)
 		return
 	
@@ -92,11 +113,11 @@ func movement(delta:float)->void:
 	var multiplier: = Vector2(1.0, 1.0)
 	
 	#Movement in air
-	if !grounded:
+	if !is_grounded:
 		multiplier = Vector2(0.5, 0.5)
 	
 	#Movement while sliding
-	if grounded && crouching:
+	if is_grounded && crouching:
 		multiplier.y = 0.0
 	
 	#Apply forces to move player
@@ -115,7 +136,7 @@ func FindVelRelativeToLook()->Vector2:
 	return Vector2(magnitude * cos(v), magnitude * cos(u))
 
 func CounterMovement(delta:float, mag:Vector2)->void:
-	if !grounded || jumping:
+	if !is_grounded || jump:
 		return
 	
 	#Slow down sliding
@@ -137,28 +158,37 @@ func CounterMovement(delta:float, mag:Vector2)->void:
 		linear_velocity = Vector3(n.x, fallSpeed, n.z)
 
 func Jump()->void:
-	if grounded && readyToJump:
+	if is_grounded && readyToJump:
 		readyToJump = false
 		
 		#Add jump forces
 		add_central_force(Vector3.UP * jumpForce * 1.5)
 		add_central_force(normalVector * jumpForce * 0.5)
 		
-		#If jumping while falling, reset y velocity.
+		#If jump while falling, reset y velocity.
 		#Not sure yet about that section
 
 func CollisionCheck(state: PhysicsDirectBodyState)->void:
-	grounded = false
-	for i in state.get_contact_count():
-		if ground_layer == ground_layer & state.get_contact_collider_object(i).collision_mask:	#bitmask AND with ground layer to check if colliding against ground layer
-			var normal = state.get_contact_local_normal(i)
+	var new_is_grounded: = false
+	for id in state.get_contact_count():
+		if ground_layer == ground_layer & state.get_contact_collider_object(id).collision_mask:	#bitmask AND with ground layer to check if colliding against ground layer
+			var normal = state.get_contact_local_normal(id)
 			if normal.y > maxSlopeAngle:
-				grounded = true
-				cancellingGrounded = false
-				normalVector = normal
+				new_is_grounded = true
 				readyToJump = true
+	
+	if is_grounded && !new_is_grounded:
+		if !jump:
+			jumpBuffer.start()
+	elif !is_grounded && new_is_grounded:
+		jump_count = 0
+		landed()																#virtual method
+	is_grounded = new_is_grounded
 
 
+#CALLBACK METHODS
+func landed()->void:
+	pass
 
 
 

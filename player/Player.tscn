@@ -35,3 +35,7 @@ material/0 = null
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.02107, 0 )
 current = true
 script = ExtResource( 2 )
+
+[node name="JumperBuffer" type="Timer" parent="."]
+wait_time = 0.1
+one_shot = true
