@@ -1,5 +1,6 @@
 # original - https://github.com/DaniDevy/FPS_Movement_Rigidbody
 # IN PROCESS OF TRANSLATION
+# doesn't have camera with turning and collision with groundcheck
 extends RigidBody
 
 var x:float
