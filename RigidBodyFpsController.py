@@ -9,6 +9,13 @@ var slideCounterMovement: = 0.2
 var threshold: = 0.01
 onready var body: = $Body   #child node used for rotation
 
+func _unhandled_input(event:INputEvent)->void:
+    #camera and turning logic HERE
+
+func _integrate_forces(state:  PhysicsDirectBodyState)
+    MyInput()
+    movement(state.step)
+    
 func MyInput()->void:
     x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
     y = Input.get_action_strength("move_up") - Input.get_action_strength("move_down")
