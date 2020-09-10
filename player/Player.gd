@@ -3,7 +3,7 @@ extends RigidBody
 
 onready var body: = $Body
 onready var camera: = $Body/Camera
-onready var jumpBuffer: = $JumperBuffer
+onready var JumpBuffer: = $JumperBuffer
 
 var forward:Vector3
 var right:Vector3
@@ -11,6 +11,7 @@ var right:Vector3
 var ground_layer: = 1
 
 #Movement
+var delta: = 0.0
 var moveSpeed: = 4500
 var maxSpeed: = 20.0
 var is_grounded: = false
@@ -27,10 +28,11 @@ var slideCounterMovement: = 0.2
 #Jumping
 var readyToJump: = true
 var jumpCooldown: = 0.25
-var jumpForce: = 450.0
+var jump_impulse: = 1500.0
 var jump_count: = 0
 var max_jumps: = 2
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
+var jump_release: = jump_impulse * 0.5
 
 #Input
 var btn_right: = 0.0
@@ -76,23 +78,19 @@ func _integrate_forces(state: PhysicsDirectBodyState)->void:
 	right = body.transform.basis.x
 	x = btn_right - btn_left
 	y = btn_up - btn_down
-	CollisionCheck(state)
-	movement(state.step)
+	delta = state.step
+	CollisionCheck(state)	#ground check
+	movement()
+	gravity_logic()
 
 
-func movement(delta:float)->void:
-	#Add extra gravity
-	add_central_force(Vector3.DOWN * delta * gravity_force)
+func movement()->void:
 	
 	#Find actual velocity relative to where player is looking
 	var mag:Vector2 = FindVelRelativeToLook()
 	
 	#Counteract sliding and sloppy movement
-	CounterMovement(delta, mag)    #x & y is global variable
-	
-	#If holding jump && ready to jump, then jump
-	if readyToJump && jump:
-		Jump()
+	CounterMovement(mag)    #x & y is global variable
 	
 	#If sliding down a ramp, add force down so player stays is_grounded and also builds speed
 	if crouching && is_grounded && readyToJump:
@@ -131,7 +129,7 @@ func FindVelRelativeToLook()->Vector2:
 	
 	return Vector2(magnitude * cos(v), magnitude * cos(u))
 
-func CounterMovement(delta:float, mag:Vector2)->void:
+func CounterMovement(mag:Vector2)->void:
 	if !is_grounded || jump:
 		return
 	
@@ -153,16 +151,41 @@ func CounterMovement(delta:float, mag:Vector2)->void:
 		var n: = linear_velocity.normalized() * maxSpeed
 		linear_velocity = Vector3(n.x, fallSpeed, n.z)
 
+func gravity_logic()->void:
+	#Add extra gravity
+	add_central_force(Vector3.DOWN * delta * gravity_force)
+	if is_grounded:
+		if is_jumping:
+			jump = false
+			is_jumping = false
+		elif !is_jumping && jump:
+			add_central_force(Vector3.UP * jump_impulse * 0.75)
+			add_central_force(normalVector * jump_impulse * 0.25)
+			is_jumping = true
+			is_grounded = false
+			jumping()
+			JumpBuffer.stop()
+	else:
+		if is_jumping:
+			if !jump:
+				is_jumping = false
+				if linear_velocity.y > jump_release:
+					linear_velocity.y = jump_release
+		else:
+			if jump:
+				if !JumpBuffer.is_stopped():
+					JumpBuffer.stop()
+					add_central_force(Vector3.UP * jump_impulse * 0.75)
+					add_central_force(normalVector * jump_impulse * 0.25)
+					is_jumping = true
+					is_grounded = false
+					jumping()
+	linear_velocity.y = max(linear_velocity.y, -jump_impulse)
+
 func Jump()->void:
-	if is_grounded && readyToJump:
-		readyToJump = false
-		
-		#Add jump forces
-		add_central_force(Vector3.UP * jumpForce * 1.5)
-		add_central_force(normalVector * jumpForce * 0.5)
-		
-		#If jump while falling, reset y velocity.
-		#Not sure yet about that section
+	#Add jump forces
+	add_central_force(Vector3.UP * jump_impulse * 0.75)
+	add_central_force(normalVector * jump_impulse * 0.25)
 
 func CollisionCheck(state: PhysicsDirectBodyState)->void:
 	var new_is_grounded: = false
@@ -175,7 +198,7 @@ func CollisionCheck(state: PhysicsDirectBodyState)->void:
 	
 	if is_grounded && !new_is_grounded:
 		if !jump:
-			jumpBuffer.start()
+			JumpBuffer.start()
 	elif !is_grounded && new_is_grounded:
 		jump_count = 0
 		landed()																#virtual method
@@ -185,7 +208,10 @@ func CollisionCheck(state: PhysicsDirectBodyState)->void:
 #CALLBACK METHODS
 func landed()->void:
 	pass
-
+var jumps: = 0
+func jumping()->void:
+	jumps +=1
+	print(jumps)
 
 
 

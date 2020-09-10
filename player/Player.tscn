@@ -13,6 +13,7 @@ mid_height = 1.6
 
 [node name="Player" type="RigidBody"]
 collision_layer = 2
+gravity_scale = 0.0
 contacts_reported = 2
 contact_monitor = true
 axis_lock_angular_x = true
