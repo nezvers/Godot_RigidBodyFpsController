@@ -14,24 +14,22 @@ var ground_layer: = 1
 #Movement
 var delta: = 0.0
 var moveSpeed: = 4500
-var maxSpeed: = 20.0
+var maxSpeed: = 10.0
 var is_grounded: = false
-var cancellingis_grounded: = false
 var threshold: = 0.01
 var maxSlopeAngle: = 45.0/90.0	#easy to check against normals y value
 var counterMovement: = 0.175
 var gravity_force: = 3000.0
+var state: PhysicsDirectBodyState	#save a reference so no need to pass in functions
 
 #Crouch & Slide
 var slideForce: = 400
 var slideCounterMovement: = 0.2
 
 #Jumping
-var readyToJump: = true
-var jumpCooldown: = 0.25
 var jump_impulse: = 35.0
 var jump_count: = 0
-var max_jumps: = 2
+var max_jumps: = 1
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
 var jump_release: = jump_impulse * 0.25
 
@@ -50,8 +48,8 @@ var crouching: = false
 var normalVector: = Vector3.UP
 var wallNormalVector:Vector3
 
-func _process(_delta):
-	label.text = str(Performance.get_monitor(Performance.TIME_FPS))
+#func _process(_delta):
+#	label.text = str(Performance.get_monitor(Performance.TIME_FPS))
 
 func _unhandled_input(event:InputEvent)->void:
 	if event is InputEventMouseMotion && Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
@@ -76,19 +74,19 @@ func _unhandled_input(event:InputEvent)->void:
 #        StopCrouch()    #not important now
 	
 
-func _integrate_forces(state: PhysicsDirectBodyState)->void:
+func _integrate_forces(_state: PhysicsDirectBodyState)->void:
 	forward = -body.transform.basis.z
 	right = body.transform.basis.x
 	x = btn_right - btn_left
 	y = btn_up - btn_down
-	delta = state.step
-	CollisionCheck(state)	#ground check
+	state = _state
+	delta = _state.step
+	CollisionCheck()	#ground check
 	gravity_logic()
 	movement()
 
 
 func movement()->void:
-	
 	#Find actual velocity relative to where player is looking
 	var mag:Vector2 = FindVelRelativeToLook()
 	
@@ -96,8 +94,8 @@ func movement()->void:
 	CounterMovement(mag)    #x & y is global variable
 	
 	#If sliding down a ramp, add force down so player stays is_grounded and also builds speed
-	if crouching && is_grounded && readyToJump:
-		add_central_force(Vector3.DOWN * delta * 3000)
+	if crouching && is_grounded:
+		state.add_central_force(Vector3.DOWN * delta * 3000)
 		return
 	
 	#If speed is larger than maxspeed, cancel out the input so you don't go over max speed
@@ -118,12 +116,12 @@ func movement()->void:
 		multiplier.y = 0.0
 	
 	#Apply forces to move player
-	add_central_force(forward * y * moveSpeed * delta * multiplier.x * multiplier.y)
-	add_central_force(right * x * moveSpeed * delta * multiplier.x)
+	state.add_central_force(forward * y * moveSpeed * delta * multiplier.x * multiplier.y)
+	state.add_central_force(right * x * moveSpeed * delta * multiplier.x)
 
 func FindVelRelativeToLook()->Vector2:
 	var lookDir = Vector2(forward.x, forward.z)
-	var moveDir = Vector2(linear_velocity.x, linear_velocity.z)
+	var moveDir = Vector2(state.linear_velocity.x, state.linear_velocity.z)
 	
 	var u = lookDir.angle_to(moveDir)
 	var v = deg2rad(90) - u
@@ -138,24 +136,24 @@ func CounterMovement(mag:Vector2)->void:
 	
 	#Slow down sliding
 	if crouching:
-		add_central_force(moveSpeed * delta * -linear_velocity.normalized() * slideCounterMovement)
+		state.add_central_force(moveSpeed * delta * -state.linear_velocity.normalized() * slideCounterMovement)
 		return
 	
 	#Counter movement
 	if (abs(mag.x) > threshold && abs(x) < 0.05) || (mag.x < -threshold && x > 0) || (mag.x > threshold && x < 0):
-		add_central_force(moveSpeed * right * delta * -mag.x * counterMovement)
+		state.add_central_force(moveSpeed * right * delta * -mag.x * counterMovement)
 	if (abs(mag.y) > threshold && abs(y) < 0.05) || (mag.y < -threshold && y > 0) || (mag.y > threshold && y < 0):
-		add_central_force(moveSpeed * forward * delta * -mag.y * counterMovement)
+		state.add_central_force(moveSpeed * forward * delta * -mag.y * counterMovement)
 	
 	#Limit diagonal running. This will also cause a full stop if sliding fast and un-crouching, so not optimal
-	if Vector2(linear_velocity.x, linear_velocity.z).length() > maxSpeed:
-		var fallSpeed = linear_velocity.y
-		var n: = linear_velocity.normalized() * maxSpeed
-		linear_velocity = Vector3(n.x, fallSpeed, n.z)
+	if Vector2(state.linear_velocity.x, state.linear_velocity.z).length() > maxSpeed:
+		var fallSpeed = state.linear_velocity.y
+		var n: = state.linear_velocity.normalized() * maxSpeed
+		state.linear_velocity = Vector3(n.x, fallSpeed, n.z)
 
 func gravity_logic()->void:
 	#Add extra gravity
-	add_central_force(Vector3.DOWN * delta * gravity_force)
+	state.add_central_force(Vector3.DOWN * delta * gravity_force)
 	if is_grounded:
 		if is_jumping:
 			jump = false
@@ -166,8 +164,8 @@ func gravity_logic()->void:
 		if is_jumping:
 			if !jump:
 				is_jumping = false
-				if linear_velocity.y > jump_release:
-					linear_velocity.y = jump_release
+				if state.linear_velocity.y > jump_release:
+					state.linear_velocity.y = jump_release
 		else:
 			if jump:
 				if !JumpBuffer.is_stopped():
@@ -175,24 +173,23 @@ func gravity_logic()->void:
 				elif jump_count < max_jumps:
 					jump_count += 1
 					Jump()
-	linear_velocity.y = max(linear_velocity.y, -jump_impulse)
+	state.linear_velocity.y = max(state.linear_velocity.y, -jump_impulse)
 
 func Jump()->void:
-	linear_velocity.y = jump_impulse * 0.75
-	add_central_force(normalVector * jump_impulse * 0.25)
+	state.linear_velocity.y = jump_impulse * 0.75
+	state.add_central_force(normalVector * jump_impulse * 0.25)
 	is_jumping = true
 	is_grounded = false
 	JumpBuffer.stop()
 	jumping()
 
-func CollisionCheck(state: PhysicsDirectBodyState)->void:
+func CollisionCheck()->void:
 	var new_is_grounded: = false
 	for id in state.get_contact_count():
 		if (ground_layer == ground_layer & state.get_contact_collider_object(id).collision_mask) && linear_velocity.y <= 0.01:	#bitmask AND with ground layer to check if colliding against ground layer
 			var normal = state.get_contact_local_normal(id)
 			if normal.y > maxSlopeAngle:
 				new_is_grounded = true
-				readyToJump = true
 	
 	if is_grounded && !new_is_grounded:
 		if !jump:
@@ -207,9 +204,8 @@ func CollisionCheck(state: PhysicsDirectBodyState)->void:
 func landed()->void:
 	pass
 
-var jumps: = 0
-func jumping(grnd:bool = false)->void:
-	jumps +=1
+func jumping()->void:
+	pass
 
 
 
