@@ -14,12 +14,12 @@ var ground_layer: = 1
 #Movement
 var delta: = 0.0
 var moveSpeed: = 4500
-var maxSpeed: = 10.0
+var maxSpeed: = 5.0
 var is_grounded: = false
 var threshold: = 0.01
 var maxSlopeAngle: = 45.0/90.0	#easy to check against normals y value
 var counterMovement: = 0.175
-var gravity_force: = 3000.0
+var gravity_force: = 2000.0
 var state: PhysicsDirectBodyState	#save a reference so no need to pass in functions
 
 #Crouch & Slide
@@ -27,7 +27,7 @@ var slideForce: = 400
 var slideCounterMovement: = 0.2
 
 #Jumping
-var jump_impulse: = 35.0
+var jump_impulse: = 15.0
 var jump_count: = 0
 var max_jumps: = 1
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
@@ -45,7 +45,7 @@ var sprinting: = false
 var crouching: = false
 
 #Sliding
-var normalVector: = Vector3.UP
+var ground_normal: = Vector3.UP
 var wallNormalVector:Vector3
 
 #func _process(_delta):
@@ -75,8 +75,9 @@ func _unhandled_input(event:InputEvent)->void:
 	
 
 func _integrate_forces(_state: PhysicsDirectBodyState)->void:
-	forward = -body.transform.basis.z
-	right = body.transform.basis.x
+	
+	forward = -body.transform.basis.z.slide(ground_normal)
+	right = body.transform.basis.x.slide(ground_normal)
 	x = btn_right - btn_left
 	y = btn_up - btn_down
 	state = _state
@@ -95,7 +96,7 @@ func movement()->void:
 	
 	#If sliding down a ramp, add force down so player stays is_grounded and also builds speed
 	if crouching && is_grounded:
-		state.add_central_force(Vector3.DOWN * delta * 3000)
+		#state.add_central_force(Vector3.DOWN * delta * 3000)
 		return
 	
 	#If speed is larger than maxspeed, cancel out the input so you don't go over max speed
@@ -136,7 +137,7 @@ func CounterMovement(mag:Vector2)->void:
 	
 	#Slow down sliding
 	if crouching:
-		state.add_central_force(moveSpeed * delta * -state.linear_velocity.normalized() * slideCounterMovement)
+		#state.add_central_force(moveSpeed * delta * -state.linear_velocity.normalized() * slideCounterMovement)
 		return
 	
 	#Counter movement
@@ -153,14 +154,15 @@ func CounterMovement(mag:Vector2)->void:
 
 func gravity_logic()->void:
 	#Add extra gravity
-	state.add_central_force(Vector3.DOWN * delta * gravity_force)
 	if is_grounded:
+		state.add_central_force(-ground_normal * delta * gravity_force * 0.01)
 		if is_jumping:
 			jump = false
 			is_jumping = false					#BUG - falsly gots triggered -> is_grounded probably gets true even after jumping
 		elif !is_jumping && jump:
 			Jump()
 	else:
+		state.add_central_force(-ground_normal * delta * gravity_force)
 		if is_jumping:
 			if !jump:
 				is_jumping = false
@@ -177,7 +179,7 @@ func gravity_logic()->void:
 
 func Jump()->void:
 	state.linear_velocity.y = jump_impulse * 0.75
-	state.add_central_force(normalVector * jump_impulse * 0.25)
+	state.add_central_force(ground_normal * jump_impulse * 0.25)
 	is_jumping = true
 	is_grounded = false
 	JumpBuffer.stop()
@@ -190,6 +192,7 @@ func CollisionCheck()->void:
 			var normal = state.get_contact_local_normal(id)
 			if normal.y > maxSlopeAngle:
 				new_is_grounded = true
+				ground_normal = normal
 	
 	if is_grounded && !new_is_grounded:
 		if !jump:
@@ -198,6 +201,8 @@ func CollisionCheck()->void:
 		jump_count = 0
 		landed()																#virtual method
 	is_grounded = new_is_grounded
+	if !is_grounded:
+		ground_normal = Vector3.UP
 
 
 #CALLBACK METHODS
