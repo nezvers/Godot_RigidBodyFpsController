@@ -13,7 +13,7 @@ var ground_layer: = 1
 
 #Movement
 var delta: = 0.0
-var moveSpeed: = 4500
+var moveSpeed: = 2000
 var maxSpeed: = 5.0
 var is_grounded: = false
 var threshold: = 0.01
@@ -27,7 +27,7 @@ var slideForce: = 400
 var slideCounterMovement: = 0.2
 
 #Jumping
-var jump_impulse: = 15.0
+var jump_impulse: = 20.0
 var jump_count: = 0
 var max_jumps: = 1
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
@@ -76,8 +76,8 @@ func _unhandled_input(event:InputEvent)->void:
 
 func _integrate_forces(_state: PhysicsDirectBodyState)->void:
 	
-	forward = -body.transform.basis.z.slide(ground_normal)
-	right = body.transform.basis.x.slide(ground_normal)
+	forward = -body.global_transform.basis.z.slide(ground_normal)
+	right = body.global_transform.basis.x.slide(ground_normal)
 	x = btn_right - btn_left
 	y = btn_up - btn_down
 	state = _state
