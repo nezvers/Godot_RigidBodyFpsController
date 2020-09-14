@@ -5,8 +5,9 @@ onready var body: = $Body
 onready var collisionShape: = $CollisionShape
 onready var camera: = $Body/Camera
 onready var JumpBuffer: = $JumperBuffer
+onready var GroundCheck: = $GroundCheck
 onready var label: = $CanvasLayer/Label
-onready var draw: = $Draw
+onready var draw: = $"Draw"
 
 var forward:Vector3
 var right:Vector3
@@ -17,11 +18,11 @@ var ground_layer: = 1
 var delta: = 0.0
 var speed: = 60.0
 var max_speed: = 5.0
+var gravity_impulse: = 30.0
 var is_grounded: = false
 var threshold: = 0.01
 var max_angle: = 45.0/90.0	#easy to check against normals y value
 var counterMovement: = 0.175
-var gravity_impulse: = 60.0
 var state: PhysicsDirectBodyState	#save a reference so no need to pass in functions
 
 #Crouch & Slide
@@ -29,7 +30,7 @@ var state: PhysicsDirectBodyState	#save a reference so no need to pass in functi
 #var slideCounterMovement: = 0.2
 
 #Jumping
-var jump_impulse: = 20.0
+var jump_impulse: = 14.0
 var jump_count: = 0
 var max_jumps: = 1
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
@@ -68,7 +69,7 @@ func _unhandled_input(event:InputEvent)->void:
 	elif event.is_action_released("jump"):
 		jump = false	
 
-func _physics_process(_delta)->void:
+func _physics_process(_delta:float)->void:
 	forward = -body.global_transform.basis.z.slide(ground_normal)
 	right = body.global_transform.basis.x.slide(ground_normal)
 	
@@ -158,6 +159,7 @@ func Jump()->void:
 	is_grounded = false
 	ground_normal = Vector3.UP
 	JumpBuffer.stop()
+	GroundCheck.start()
 	jumping()
 
 func CollisionCheck()->void:
@@ -168,7 +170,7 @@ func CollisionCheck()->void:
 	shape.shape_rid = collisionShape.shape.get_rid()
 	shape.collision_mask = 1
 	var result: = space_state.get_rest_info(shape)
-	if result:
+	if GroundCheck.is_stopped() && result:											#Linear_velocity updates async = false grounded after jumping
 		ground_normal = result.normal
 		new_is_grounded = true
 	

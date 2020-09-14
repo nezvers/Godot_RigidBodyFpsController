@@ -42,13 +42,14 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.16525, 3.06128 )
 current = true
 script = ExtResource( 2 )
 
-[node name="JumperBuffer" type="Timer" parent="."]
-one_shot = true
-
 [node name="Draw" type="ImmediateGeometry" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.50855, 0 )
 material_override = SubResource( 3 )
 script = ExtResource( 3 )
+
+[node name="JumperBuffer" type="Timer" parent="."]
+wait_time = 0.17
+one_shot = true
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -60,3 +61,7 @@ margin_bottom = 29.3576
 __meta__ = {
 "_edit_use_anchors_": false
 }
+
+[node name="GroundCheck" type="Timer" parent="."]
+wait_time = 0.07
+one_shot = true
