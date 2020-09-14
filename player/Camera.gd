@@ -1,6 +1,6 @@
 extends Camera
 
-export (float, 0.001, 0.1) var mouse_sensitivity = 0.005
+export (float, 0.001, 0.1) var mouse_sensitivity = 0.003
 export (bool) var invert_x = false
 export (bool) var invert_y = false
 

@@ -39,7 +39,7 @@ transform = Transform( 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0 )
 mesh = ExtResource( 6 )
 material/0 = null
 
-[node name="CollisionShape2" type="CollisionShape" parent="Collision"]
+[node name="CollisionShape3" type="CollisionShape" parent="Collision"]
 transform = Transform( 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0 )
 shape = SubResource( 3 )
 
@@ -48,7 +48,7 @@ transform = Transform( 4, 0, 0, 0, 2, 0, 0, 0, 2, -4, 0, 0 )
 mesh = ExtResource( 5 )
 material/0 = null
 
-[node name="CollisionShape3" type="CollisionShape" parent="Collision"]
+[node name="CollisionShape2" type="CollisionShape" parent="Collision"]
 transform = Transform( 4, 0, 0, 0, 2, 0, 0, 0, 2, -4, 0, 0 )
 shape = SubResource( 4 )
 
