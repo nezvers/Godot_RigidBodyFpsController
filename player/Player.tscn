@@ -1,8 +1,11 @@
-[gd_scene load_steps=7 format=2]
+[gd_scene load_steps=8 format=2]
 
 [ext_resource path="res://player/Player.gd" type="Script" id=1]
 [ext_resource path="res://player/Camera.gd" type="Script" id=2]
 [ext_resource path="res://player/Draw.gd" type="Script" id=3]
+
+[sub_resource type="PhysicsMaterial" id=4]
+friction = 0.0
 
 [sub_resource type="CapsuleShape" id=1]
 radius = 0.4
@@ -18,9 +21,11 @@ albedo_color = Color( 0, 1, 0.0392157, 1 )
 
 [node name="Player" type="RigidBody"]
 collision_layer = 2
+physics_material_override = SubResource( 4 )
 gravity_scale = 0.0
 contacts_reported = 2
 contact_monitor = true
+can_sleep = false
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true

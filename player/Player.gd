@@ -16,13 +16,15 @@ var ground_layer: = 1
 
 #Movement
 var delta: = 0.0
-var speed: = 60.0
-var max_speed: = 5.0
+var walk_spd: = 8.0
+var max_speed: = 8.0
+var acc_ground: = 20.0
+var acc_air:	= 7.0
 var gravity_impulse: = 30.0
 var is_grounded: = false
 var threshold: = 0.01
 var max_angle: = 45.0/90.0	#easy to check against normals y value
-var counterMovement: = 0.175
+var counterMovement: = 0.01	#0.175
 var state: PhysicsDirectBodyState	#save a reference so no need to pass in functions
 
 #Crouch & Slide
@@ -30,7 +32,7 @@ var state: PhysicsDirectBodyState	#save a reference so no need to pass in functi
 #var slideCounterMovement: = 0.2
 
 #Jumping
-var jump_impulse: = 14.0
+var jump_impulse: = 15.0
 var jump_count: = 0
 var max_jumps: = 1
 var is_jumping: = false 	#jump logic deviation from DaviTutorials
@@ -69,61 +71,26 @@ func _unhandled_input(event:InputEvent)->void:
 	elif event.is_action_released("jump"):
 		jump = false	
 
-func _physics_process(_delta:float)->void:
+func _integrate_forces(_state:PhysicsDirectBodyState):
 	forward = -body.global_transform.basis.z.slide(ground_normal)
 	right = body.global_transform.basis.x.slide(ground_normal)
 	
 	draw.point = right*2.0										#Debugg draw ImmediateGeometry line
 	dir.x = btn_right - btn_left
 	dir.y = btn_up - btn_down
-	delta = _delta
-	movement()
+	delta = _state.step
+	state = _state
+	velocity()
 	gravity_logic()
-	CollisionCheck()	#ground check
+	ground_check()	#ground check
 
 
-func movement()->void:
-	var mag:Vector2 = FindVelRelativeToLook()
-	CounterMovement(mag)    #x & y is global variable
-		
-	#If speed is larger than max_speed, cancel out the input so you don't go over max speed
-	if abs(mag.x) > max_speed:
-		dir.x = 0
-	if abs(mag.y) > max_speed:
-		dir.y = 0
-	
-	var multiplier: = Vector2(1.0, 1.0)
-	if !is_grounded:
-		multiplier = Vector2(0.5, 0.5)
-	
-	#Apply forces to move player
-	apply_central_impulse(forward * dir.y * speed * delta * multiplier.x * multiplier.y)
-	apply_central_impulse(right * dir.x * speed * delta * multiplier.x)
-
-func FindVelRelativeToLook()->Vector2:
-	var lookDir = Vector2(forward.x, forward.z)
-	var moveDir = Vector2(linear_velocity.x, linear_velocity.z)
-	var u = lookDir.angle_to(moveDir)
-	var v = deg2rad(90) - u
-	var magnitude = moveDir.length()
-	return Vector2(magnitude * cos(v), magnitude * cos(u))
-
-func CounterMovement(mag:Vector2)->void:
-#	if !is_grounded || jump:
-#		return
-		
-	#Counter movement
-	if (abs(mag.x) > threshold && abs(dir.x) < 0.05) || (mag.x < -threshold && dir.x > 0) || (mag.x > threshold && dir.x < 0):
-		apply_central_impulse(speed * right * delta * -mag.x * counterMovement)
-	if (abs(mag.y) > threshold && abs(dir.y) < 0.05) || (mag.y < -threshold && dir.y > 0) || (mag.y > threshold && dir.y < 0):
-		apply_central_impulse(speed * forward * delta * -mag.y * counterMovement)
-	
-	#Limit diagonal running. This will also cause a full stop if sliding fast and un-crouching, so not optimal
-	if Vector2(linear_velocity.x, linear_velocity.z).length() > max_speed:
-		var fallSpeed = linear_velocity.y
-		var n: = linear_velocity.normalized() * max_speed
-		var limit: = Vector3(n.x, fallSpeed, n.z)
-		apply_central_impulse(limit - linear_velocity)
+func velocity()->void:
+	var velocity: = (forward*dir.y + right*dir.x).normalized() * walk_spd
+	if is_grounded:
+		state.linear_velocity = state.linear_velocity.move_toward(velocity, acc_ground * delta)
+	else:
+		state.linear_velocity = state.linear_velocity.move_toward(velocity, acc_air * delta)
 
 func gravity_logic()->void:
 	if is_grounded:
@@ -150,11 +117,11 @@ func gravity_logic()->void:
 	
 
 func apply_gravity()->void:
-	apply_central_impulse(-ground_normal * delta * gravity_impulse)
+	state.apply_central_impulse(-ground_normal * delta * gravity_impulse)
 
 func Jump()->void:
-	apply_central_impulse(Vector3(0.0, (jump_impulse * 0.75) - linear_velocity.y, 0.0))
-	apply_central_impulse(ground_normal * jump_impulse * 0.25)
+	state.apply_central_impulse(Vector3(0.0, (jump_impulse * 0.75) - linear_velocity.y, 0.0))
+	state.apply_central_impulse(ground_normal * jump_impulse * 0.25)
 	is_jumping = true
 	is_grounded = false
 	ground_normal = Vector3.UP
@@ -162,27 +129,36 @@ func Jump()->void:
 	GroundCheck.start()
 	jumping()
 
-func CollisionCheck()->void:
+func ground_check()->void:
 	var new_is_grounded: = false
-	var space_state: = get_world().direct_space_state
-	var shape: = PhysicsShapeQueryParameters.new()
-	shape.transform = collisionShape.global_transform
-	shape.shape_rid = collisionShape.shape.get_rid()
-	shape.collision_mask = 1
-	var result: = space_state.get_rest_info(shape)
-	if GroundCheck.is_stopped() && result:											#Linear_velocity updates async = false grounded after jumping
-		ground_normal = result.normal
-		new_is_grounded = true
+	if GroundCheck.is_stopped():
+		var space_state: = get_world().direct_space_state
+		var shape: = PhysicsShapeQueryParameters.new()
+		shape.transform = collisionShape.global_transform
+		shape.shape_rid = collisionShape.shape.get_rid()
+		shape.collision_mask = 1
+		var result: = space_state.get_rest_info(shape)
+		if result:											#if shape is colliding
+			ground_normal = result.normal
+			new_is_grounded = true
+		else:												#Check using raycast down
+			var pos: = global_transform.origin
+			var hit:Dictionary = space_state.intersect_ray(pos, pos+Vector3(0.0, -0.1, 0.0), [], 1)
+			if hit:
+				if hit.normal.y >= 0.5:
+					ground_normal = hit.normal
+					new_is_grounded = true
+					var dist:Vector3 = hit.position - pos
+					apply_central_impulse(dist)
 	
 	if is_grounded && !new_is_grounded:
+		ground_normal = Vector3.UP
 		if !jump:
 			JumpBuffer.start()
 	elif !is_grounded && new_is_grounded:
 		jump_count = 0
 		landed()																#virtual method
 	is_grounded = new_is_grounded
-	if !is_grounded:
-		ground_normal = Vector3.UP
 
 
 #CALLBACK METHODS
