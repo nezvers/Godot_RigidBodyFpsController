@@ -44,6 +44,7 @@ script = ExtResource( 2 )
 
 [node name="Draw" type="ImmediateGeometry" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.50855, 0 )
+visible = false
 material_override = SubResource( 3 )
 script = ExtResource( 3 )
 
