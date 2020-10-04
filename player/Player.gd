@@ -12,14 +12,13 @@ onready var draw: = $"Draw"
 var forward:Vector3
 var right:Vector3
 
-var ground_layer: = 1
 
 #Movement
 var delta: = 0.0
 var walk_spd: = 8.0
 var max_speed: = 8.0
-var acc_ground: = 20.0
-var acc_air:	= 7.0
+var acc_ground: = 22.0
+var acc_air:	= 8.0
 var gravity_impulse: = 30.0
 var is_grounded: = false
 var threshold: = 0.01
@@ -105,8 +104,8 @@ func gravity_logic()->void:
 		if is_jumping:
 			if !jump:
 				is_jumping = false
-				if linear_velocity.y > jump_release:
-					apply_central_impulse(Vector3(0.0, (jump_release) - linear_velocity.y, 0.0))
+				if state.linear_velocity.y > jump_release:
+					apply_central_impulse(Vector3(0.0, (jump_release) - state.linear_velocity.y, 0.0))
 		else:
 			if jump:
 				if !JumpBuffer.is_stopped():
@@ -120,7 +119,7 @@ func apply_gravity()->void:
 	state.apply_central_impulse(-ground_normal * delta * gravity_impulse)
 
 func Jump()->void:
-	state.apply_central_impulse(Vector3(0.0, (jump_impulse * 0.75) - linear_velocity.y, 0.0))
+	state.apply_central_impulse(Vector3(0.0, (jump_impulse * 0.75) - state.linear_velocity.y, 0.0))
 	state.apply_central_impulse(ground_normal * jump_impulse * 0.25)
 	is_jumping = true
 	is_grounded = false
@@ -129,27 +128,31 @@ func Jump()->void:
 	GroundCheck.start()
 	jumping()
 
+
+
+const mask_ground: = 1
+const mask_moving: = 4
 func ground_check()->void:
 	var new_is_grounded: = false
 	if GroundCheck.is_stopped():
 		var space_state: = get_world().direct_space_state
-		var shape: = PhysicsShapeQueryParameters.new()
-		shape.transform = collisionShape.global_transform
-		shape.shape_rid = collisionShape.shape.get_rid()
-		shape.collision_mask = 1
-		var result: = space_state.get_rest_info(shape)
-		if result:											#if shape is colliding
-			ground_normal = result.normal
-			new_is_grounded = true
+		var pos: = state.transform.origin
+		var hit:Dictionary = space_state.intersect_ray(pos+Vector3(0.0, 0.1, 0.0), pos+Vector3(0.0, -0.1, 0.0), [], mask_ground|mask_moving)
+		if hit:
+			if hit.normal.y >= 0.5:
+				ground_normal = hit.normal
+				new_is_grounded = true
+				var dist:Vector3 = hit.position - pos
+				apply_central_impulse(dist)
 		else:												#Check using raycast down
-			var pos: = global_transform.origin
-			var hit:Dictionary = space_state.intersect_ray(pos, pos+Vector3(0.0, -0.1, 0.0), [], 1)
-			if hit:
-				if hit.normal.y >= 0.5:
-					ground_normal = hit.normal
-					new_is_grounded = true
-					var dist:Vector3 = hit.position - pos
-					apply_central_impulse(dist)
+			var shape: = PhysicsShapeQueryParameters.new()
+			shape.transform = collisionShape.global_transform
+			shape.shape_rid = collisionShape.shape.get_rid()
+			shape.collision_mask = mask_ground|mask_moving
+			var result: = space_state.get_rest_info(shape)
+			if result:											#if shape is colliding
+				ground_normal = result.normal
+				new_is_grounded = true
 	
 	if is_grounded && !new_is_grounded:
 		ground_normal = Vector3.UP

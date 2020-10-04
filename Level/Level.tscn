@@ -116,6 +116,8 @@ transform = Transform( -4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 7, -0.0
 
 [node name="MovingPlatform" type="KinematicBody" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -6.00559, 2, 0 )
+collision_layer = 5
+collision_mask = 2
 
 [node name="MeshInstance" type="MeshInstance" parent="MovingPlatform"]
 transform = Transform( 2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0 )
